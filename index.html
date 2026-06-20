@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>DUNNO - 어디뒀더라</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Nunito:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="bg-shape bg-shape-a" aria-hidden="true"></div>
+    <div class="bg-shape bg-shape-b" aria-hidden="true"></div>
+
+    <main class="app-shell">
+      <header class="app-header">
+        <p class="eyebrow">SECOND BRAIN FOR HOME</p>
+        <h1>어디뒀더라</h1>
+        <p class="subcopy">물건 위치와 재고를 한눈에 정리해요.</p>
+      </header>
+
+      <section class="search-section" aria-label="검색 영역">
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="이름 또는 위치 검색"
+          autocomplete="off"
+        />
+      </section>
+
+      <section class="view-toggle-section" aria-label="그룹 보기 전환">
+        <div class="view-toggle" id="viewToggle" role="tablist" aria-label="그룹 기준">
+          <button type="button" class="view-tab active" data-view="category" role="tab" aria-selected="true">
+            카테고리별
+          </button>
+          <button type="button" class="view-tab" data-view="location" role="tab" aria-selected="false">
+            위치별
+          </button>
+        </div>
+      </section>
+
+      <section class="chip-section" aria-label="카테고리 필터">
+        <div id="categoryChips" class="chip-list"></div>
+      </section>
+
+      <section class="list-section" aria-label="아이템 목록">
+        <div id="itemList" class="item-list"></div>
+      </section>
+    </main>
+
+    <button id="fabAdd" class="fab" type="button" aria-label="물건 추가">+</button>
+
+    <dialog id="itemDialog" class="item-dialog">
+      <form id="itemForm" method="dialog" class="item-form">
+        <h2 id="dialogTitle">물건 추가</h2>
+
+        <label>
+          이름
+          <input id="nameInput" name="name" type="text" required />
+        </label>
+
+        <label>
+          위치
+          <input id="locationInput" name="location" type="text" required />
+        </label>
+
+        <label>
+          카테고리
+          <select id="categoryInput" name="category" required></select>
+        </label>
+
+        <div class="category-custom-row" aria-label="카테고리 직접 추가">
+          <input id="customCategoryInput" type="text" placeholder="새 카테고리 이름" />
+          <button id="addCategoryBtn" type="button" class="tiny-btn">카테고리 추가</button>
+        </div>
+
+        <div class="category-manage-block" aria-label="카테고리 관리">
+          <p class="field-title">선택한 카테고리 관리</p>
+          <div class="category-manage-row">
+            <input id="renameCategoryInput" type="text" placeholder="변경할 이름" />
+            <button id="renameCategoryBtn" type="button" class="tiny-btn">이름 변경</button>
+            <button id="deleteCategoryBtn" type="button" class="tiny-btn danger">삭제</button>
+          </div>
+        </div>
+
+        <label>
+          수량
+          <input id="quantityInput" name="quantity" type="number" min="1" value="1" required />
+        </label>
+
+        <label>
+          메모
+          <textarea id="memoInput" name="memo" rows="3" placeholder="선택 입력"></textarea>
+        </label>
+
+        <div class="image-mode-block" aria-label="이미지 입력 유형">
+          <p class="field-title">이미지 유형</p>
+          <div class="image-mode-toggle" id="imageModeToggle" role="tablist" aria-label="이미지 입력 유형 선택">
+            <button type="button" class="image-mode-tab active" data-image-mode="url" role="tab" aria-selected="true">
+              이미지 URL
+            </button>
+            <button type="button" class="image-mode-tab" data-image-mode="upload" role="tab" aria-selected="false">
+              이미지 업로드
+            </button>
+          </div>
+        </div>
+
+        <div id="imageUrlGroup">
+          <label>
+            이미지 검색어 또는 URL
+            <input id="imageUrlInput" name="imageUrl" type="text" placeholder="예: passport 또는 https://..." />
+          </label>
+        </div>
+
+        <div id="imageUploadGroup" hidden>
+          <div class="image-input-grid" aria-label="이미지 업로드 방식">
+            <label>
+              이미지 업로드
+              <input id="imageUploadInput" type="file" accept="image/*" />
+            </label>
+            <label>
+              사진 촬영
+              <input id="imageCaptureInput" type="file" accept="image/*" capture="environment" />
+            </label>
+          </div>
+
+          <div class="image-preview-box" id="imagePreviewBox" aria-live="polite">
+            <img id="imagePreview" alt="선택한 이미지 미리보기" hidden />
+            <p id="imagePreviewHint">이미지 업로드 또는 사진 촬영을 선택하면 미리보기가 표시돼요.</p>
+            <button type="button" id="clearImageBtn" class="tiny-btn" hidden>이미지 선택 해제</button>
+          </div>
+        </div>
+
+        <p id="formError" class="form-error" role="alert" aria-live="polite"></p>
+
+        <div class="dialog-actions">
+          <button id="cancelBtn" type="button" class="ghost">취소</button>
+          <button id="submitBtn" type="submit" class="primary">저장</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
