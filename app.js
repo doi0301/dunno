@@ -9,8 +9,11 @@ const DEFAULT_CATEGORIES = {
   etc: { label: "기타", emoji: "📦", color: "#e5e7eb" },
 };
 
+const DEFAULT_ROOMS = ["거실", "침실", "주방", "욕실", "베란다", "현관", "서재", "기타"];
+
 const STORAGE_KEY = "dunno.items.v1";
 const CATEGORY_STORAGE_KEY = "dunno.categories.v1";
+const ROOM_STORAGE_KEY = "dunno.rooms.v1";
 const ONBOARDING_KEY = "dunno.onboarding.dismissed.v1";
 const CATEGORY_FALLBACK_EMOJIS = ["📦", "🧺", "🗂️", "🪄", "🧰", "🧷", "🧩", "🛍️"];
 const CATEGORY_FALLBACK_COLORS = ["#e5e7eb", "#dbeafe", "#fee2e2", "#dcfce7", "#fef3c7", "#e0e7ff", "#fce7f3", "#cffafe"];
@@ -19,23 +22,38 @@ const state = {
   items: [],
   searchQuery: "",
   activeCategory: "all",
+  activeFurnitureFilter: "all",
   categories: { ...DEFAULT_CATEGORIES },
+  rooms: [...DEFAULT_ROOMS],
   viewMode: "category",
   onboardingDismissed: false,
   formImageMode: "url",
   editingItemId: null,
   highlightedNewItemId: null,
   formSelectedImageUrl: "",
+  pendingDelete: null,
 };
 
 const $ = {
   searchInput: document.querySelector("#searchInput"),
   viewToggle: document.querySelector("#viewToggle"),
+  locationSettingsBtn: document.querySelector("#locationSettingsBtn"),
+  categorySettingsBtn: document.querySelector("#categorySettingsBtn"),
   categoryChips: document.querySelector("#categoryChips"),
+  locationSubFilters: document.querySelector("#locationSubFilters"),
+  locationFurnitureFilter: document.querySelector("#locationFurnitureFilter"),
+  listSection: document.querySelector(".list-section"),
   itemList: document.querySelector("#itemList"),
+  mainScrollbar: document.querySelector("#mainScrollbar"),
+  mainScrollbarTrack: document.querySelector("#mainScrollbarTrack"),
+  mainScrollbarThumb: document.querySelector("#mainScrollbarThumb"),
   fabAdd: document.querySelector("#fabAdd"),
   itemDialog: document.querySelector("#itemDialog"),
+  locationSettingsDialog: document.querySelector("#locationSettingsDialog"),
+  categorySettingsDialog: document.querySelector("#categorySettingsDialog"),
   itemForm: document.querySelector("#itemForm"),
+  closeLocationSettingsBtn: document.querySelector("#closeLocationSettingsBtn"),
+  closeCategorySettingsBtn: document.querySelector("#closeCategorySettingsBtn"),
   cancelBtn: document.querySelector("#cancelBtn"),
   dialogTitle: document.querySelector("#dialogTitle"),
   formError: document.querySelector("#formError"),
@@ -48,18 +66,33 @@ const $ = {
   renameCategoryInput: document.querySelector("#renameCategoryInput"),
   renameCategoryBtn: document.querySelector("#renameCategoryBtn"),
   deleteCategoryBtn: document.querySelector("#deleteCategoryBtn"),
+  categoryManageSelect: document.querySelector("#categoryManageSelect"),
   categoryInput: document.querySelector("#categoryInput"),
   nameInput: document.querySelector("#nameInput"),
-  locationInput: document.querySelector("#locationInput"),
+  locationRoomInput: document.querySelector("#locationRoomInput"),
+  addRoomInput: document.querySelector("#addRoomInput"),
+  addRoomBtn: document.querySelector("#addRoomBtn"),
+  roomManageSelect: document.querySelector("#roomManageSelect"),
+  renameRoomInput: document.querySelector("#renameRoomInput"),
+  renameRoomBtn: document.querySelector("#renameRoomBtn"),
+  deleteRoomBtn: document.querySelector("#deleteRoomBtn"),
+  locationFurnitureInput: document.querySelector("#locationFurnitureInput"),
+  locationDetailInput: document.querySelector("#locationDetailInput"),
   quantityInput: document.querySelector("#quantityInput"),
   memoInput: document.querySelector("#memoInput"),
   imageUrlInput: document.querySelector("#imageUrlInput"),
   imageUploadInput: document.querySelector("#imageUploadInput"),
   imageCaptureInput: document.querySelector("#imageCaptureInput"),
+  pickUploadBtn: document.querySelector("#pickUploadBtn"),
+  pickCaptureBtn: document.querySelector("#pickCaptureBtn"),
   imagePreview: document.querySelector("#imagePreview"),
   imagePreviewHint: document.querySelector("#imagePreviewHint"),
   clearImageBtn: document.querySelector("#clearImageBtn"),
+  undoToast: document.querySelector("#undoToast"),
+  undoDeleteBtn: document.querySelector("#undoDeleteBtn"),
 };
+
+const DEFAULT_IMAGE_PREVIEW_HINT = "파일에서 선택 또는 카메라 촬영을 하면 미리보기가 표시돼요.";
 
 const SAMPLE_ITEMS = [
   {
@@ -84,6 +117,26 @@ const SAMPLE_ITEMS = [
     memo: "리필 필요",
   },
 ];
+
+const scrollbarDragState = {
+  dragging: false,
+  startY: 0,
+  startThumbTop: 0,
+};
+
+function getCurrentThumbTop() {
+  return Number.parseFloat($.mainScrollbarThumb?.dataset.top || "0") || 0;
+}
+
+function setCurrentThumbTop(value) {
+  if (!$.mainScrollbarThumb) {
+    return;
+  }
+
+  const safeValue = Number.isFinite(value) ? value : 0;
+  $.mainScrollbarThumb.dataset.top = String(safeValue);
+  $.mainScrollbarThumb.style.transform = `translateY(${safeValue}px)`;
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -140,6 +193,197 @@ function saveCategories() {
   localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(state.categories));
 }
 
+function loadRooms() {
+  try {
+    const raw = localStorage.getItem(ROOM_STORAGE_KEY);
+    if (!raw) {
+      return [...DEFAULT_ROOMS];
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [...DEFAULT_ROOMS];
+    }
+
+    const normalized = Array.from(
+      new Set(parsed.map((room) => String(room || "").trim()).filter(Boolean)),
+    );
+
+    if (!normalized.length) {
+      return [...DEFAULT_ROOMS];
+    }
+
+    if (!normalized.includes("기타")) {
+      normalized.push("기타");
+    }
+
+    return normalized;
+  } catch {
+    return [...DEFAULT_ROOMS];
+  }
+}
+
+function saveRooms() {
+  localStorage.setItem(ROOM_STORAGE_KEY, JSON.stringify(state.rooms));
+}
+
+function renderRoomOptions() {
+  const currentValue = String($.locationRoomInput.value || "").trim();
+  $.locationRoomInput.innerHTML = state.rooms
+    .map((room) => `<option value="${escapeHtml(room)}">${escapeHtml(room)}</option>`)
+    .join("");
+
+  $.roomManageSelect.innerHTML = state.rooms
+    .map((room) => `<option value="${escapeHtml(room)}">${escapeHtml(room)}</option>`)
+    .join("");
+
+  if (state.rooms.includes(currentValue)) {
+    $.locationRoomInput.value = currentValue;
+  } else {
+    $.locationRoomInput.value = state.rooms[0] || "기타";
+  }
+}
+
+function syncRoomManageInputs(selectedRoom = null) {
+  const room = selectedRoom && state.rooms.includes(selectedRoom)
+    ? selectedRoom
+    : ($.roomManageSelect.value && state.rooms.includes($.roomManageSelect.value)
+      ? $.roomManageSelect.value
+      : (state.rooms[0] || "기타"));
+
+  if ($.roomManageSelect.value !== room) {
+    $.roomManageSelect.value = room;
+  }
+
+  $.renameRoomInput.value = room;
+}
+
+function createRoom(name) {
+  const room = String(name || "").trim();
+  if (!room) {
+    $.formError.textContent = "방 이름을 입력해 주세요.";
+    return false;
+  }
+
+  if (state.rooms.includes(room)) {
+    $.roomManageSelect.value = room;
+    syncRoomManageInputs(room);
+    $.formError.textContent = "";
+    return true;
+  }
+
+  state.rooms.push(room);
+  saveRooms();
+  renderRoomOptions();
+  $.roomManageSelect.value = room;
+  $.locationRoomInput.value = room;
+  syncRoomManageInputs(room);
+  $.formError.textContent = "";
+  return true;
+}
+
+function renameRoom(targetRoom, nextRoomName) {
+  const fromRoom = String(targetRoom || "").trim();
+  const toRoom = String(nextRoomName || "").trim();
+
+  if (!fromRoom || !state.rooms.includes(fromRoom)) {
+    $.formError.textContent = "변경할 방을 선택해 주세요.";
+    return false;
+  }
+
+  if (!toRoom) {
+    $.formError.textContent = "변경할 방 이름을 입력해 주세요.";
+    return false;
+  }
+
+  if (state.rooms.includes(toRoom) && toRoom !== fromRoom) {
+    $.formError.textContent = "이미 존재하는 방 이름입니다.";
+    return false;
+  }
+
+  state.rooms = state.rooms.map((room) => (room === fromRoom ? toRoom : room));
+  state.items = state.items.map((item) => {
+    if (item.locationRoom !== fromRoom) {
+      return item;
+    }
+    return normalizeItem({ ...item, locationRoom: toRoom }, item);
+  });
+
+  if (state.viewMode === "location" && state.activeCategory === fromRoom) {
+    state.activeCategory = toRoom;
+  }
+
+  saveRooms();
+  saveItems(state.items);
+  renderRoomOptions();
+  syncRoomManageInputs(toRoom);
+  renderCategoryChips();
+  renderItems();
+  $.formError.textContent = "";
+  return true;
+}
+
+function deleteRoom(targetRoom) {
+  const room = String(targetRoom || "").trim();
+  if (!room || !state.rooms.includes(room)) {
+    $.formError.textContent = "삭제할 방을 선택해 주세요.";
+    return false;
+  }
+
+  if (room === "기타") {
+    $.formError.textContent = "기타 방은 삭제할 수 없어요.";
+    return false;
+  }
+
+  state.rooms = state.rooms.filter((name) => name !== room);
+  state.items = state.items.map((item) => {
+    if (item.locationRoom !== room) {
+      return item;
+    }
+    return normalizeItem({ ...item, locationRoom: "기타" }, item);
+  });
+
+  if (state.viewMode === "location" && state.activeCategory === room) {
+    state.activeCategory = "all";
+  }
+
+  saveRooms();
+  saveItems(state.items);
+  renderRoomOptions();
+  syncRoomManageInputs("기타");
+  renderCategoryChips();
+  renderItems();
+  $.formError.textContent = "";
+  return true;
+}
+
+function mergeRoomsFromItems() {
+  const itemRooms = Array.from(
+    new Set(
+      state.items
+        .map((item) => String(item.locationRoom || "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  let changed = false;
+  itemRooms.forEach((room) => {
+    if (!state.rooms.includes(room)) {
+      state.rooms.push(room);
+      changed = true;
+    }
+  });
+
+  if (!state.rooms.includes("기타")) {
+    state.rooms.push("기타");
+    changed = true;
+  }
+
+  if (changed) {
+    saveRooms();
+  }
+}
+
 function slugifyCategoryName(name) {
   return name
     .trim()
@@ -192,14 +436,22 @@ function createCustomCategory(name) {
 }
 
 function syncCategoryManageInputs(selectedKey = null) {
+  if (!$.categoryManageSelect) {
+    return;
+  }
+
+  $.categoryManageSelect.innerHTML = Object.entries(state.categories)
+    .map(([key, value]) => `<option value="${key}">${escapeHtml(value.label)}</option>`)
+    .join("");
+
   const key = selectedKey && state.categories[selectedKey]
     ? selectedKey
-    : ($.categoryInput.value && state.categories[$.categoryInput.value]
-      ? $.categoryInput.value
+    : ($.categoryManageSelect.value && state.categories[$.categoryManageSelect.value]
+      ? $.categoryManageSelect.value
       : (Object.keys(state.categories)[0] || "etc"));
 
-  if ($.categoryInput.value !== key) {
-    $.categoryInput.value = key;
+  if ($.categoryManageSelect.value !== key) {
+    $.categoryManageSelect.value = key;
   }
 
   $.renameCategoryInput.value = getCategoryMeta(key).label;
@@ -309,6 +561,7 @@ function setImagePreview(src) {
     $.imagePreview.hidden = true;
     $.imagePreview.removeAttribute("src");
     $.imagePreviewHint.hidden = false;
+    $.imagePreviewHint.textContent = DEFAULT_IMAGE_PREVIEW_HINT;
     $.clearImageBtn.hidden = true;
     return;
   }
@@ -341,10 +594,6 @@ function clearSelectedImage() {
   state.formSelectedImageUrl = "";
   $.imageUploadInput.value = "";
   $.imageCaptureInput.value = "";
-  const uploadRadio = document.querySelector('input[name="imageInputMethod"][value="upload"]');
-  if (uploadRadio) {
-    uploadRadio.checked = true;
-  }
   setImagePreview("");
 }
 
@@ -377,15 +626,67 @@ async function handleImageFileInput(file) {
     const dataUrl = await readFileAsDataUrl(file);
     state.formSelectedImageUrl = dataUrl;
     setImagePreview(dataUrl);
+    $.imagePreviewHint.textContent = `${file.name || "이미지"} 선택됨`;
     $.formError.textContent = "";
   } catch {
     $.formError.textContent = "이미지 처리 중 오류가 발생했어요.";
   }
 }
 
+function parseLocationParts(rawLocation) {
+  const safe = String(rawLocation || "").trim();
+  if (!safe) {
+    return { room: "", furniture: "", detail: "" };
+  }
+
+  const segmented = safe
+    .split(">")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (segmented.length >= 3) {
+    return {
+      room: segmented[0],
+      furniture: segmented[1],
+      detail: segmented.slice(2).join(" > "),
+    };
+  }
+
+  if (segmented.length === 2) {
+    return { room: segmented[0], furniture: segmented[1], detail: "" };
+  }
+
+  const tokens = safe.split(/\s+/).filter(Boolean);
+  if (tokens.length >= 3) {
+    return {
+      room: tokens[0],
+      furniture: tokens[1],
+      detail: tokens.slice(2).join(" "),
+    };
+  }
+
+  if (tokens.length === 2) {
+    return { room: tokens[0], furniture: tokens[1], detail: "" };
+  }
+
+  return { room: tokens[0] || "", furniture: "", detail: "" };
+}
+
+function buildLocationText(room, furniture, detail) {
+  return [room, furniture, detail].filter(Boolean).join(" > ");
+}
+
 function normalizeItem(input, previous = null) {
   const safeName = String(input?.name ?? "").trim();
-  const safeLocation = String(input?.location ?? "").trim();
+  const legacyLocation = parseLocationParts(input?.location);
+  const safeLocationRoom = String(input?.locationRoom ?? legacyLocation.room).trim();
+  const safeLocationFurniture = String(input?.locationFurniture ?? legacyLocation.furniture).trim();
+  const safeLocationDetail = String(input?.locationDetail ?? legacyLocation.detail).trim();
+  const safeLocation = buildLocationText(
+    safeLocationRoom,
+    safeLocationFurniture,
+    safeLocationDetail,
+  );
   const safeCategory = state.categories[input?.category] ? input.category : "etc";
   const parsedQty = Number.parseInt(input?.quantity, 10);
   const safeQuantity = Number.isFinite(parsedQty) && parsedQty > 0 ? parsedQty : 1;
@@ -400,6 +701,9 @@ function normalizeItem(input, previous = null) {
     id: previous?.id || String(input?.id || createId()),
     name: safeName,
     location: safeLocation,
+    locationRoom: safeLocationRoom,
+    locationFurniture: safeLocationFurniture,
+    locationDetail: safeLocationDetail,
     category: safeCategory,
     quantity: safeQuantity,
     memo: safeMemo,
@@ -409,7 +713,12 @@ function normalizeItem(input, previous = null) {
 }
 
 function isValidItemForSave(item) {
-  return Boolean(item.name && item.location && state.categories[item.category]);
+  return Boolean(
+    item.name &&
+    item.locationRoom &&
+    item.locationFurniture &&
+    state.categories[item.category],
+  );
 }
 
 function loadItems() {
@@ -426,7 +735,7 @@ function loadItems() {
 
     return parsed
       .map((item) => normalizeItem(item))
-      .filter((item) => item.name && item.location);
+      .filter((item) => item.name && item.locationRoom && item.locationFurniture);
   } catch {
     return [];
   }
@@ -452,7 +761,7 @@ function createSampleItems() {
 function getLocationFilterOptions() {
   const locationSet = new Set(
     state.items
-      .map((item) => String(item.location || "").trim())
+      .map((item) => String(item.locationRoom || "").trim())
       .filter(Boolean),
   );
 
@@ -471,19 +780,102 @@ function getCategoryFilterOptions() {
   }));
 }
 
+function getLocationFurnitureFilterOptions() {
+  const filteredByRoom = state.items.filter((item) =>
+    state.activeCategory === "all" || item.locationRoom === state.activeCategory,
+  );
+
+  const options = Array.from(
+    new Set(
+      filteredByRoom
+        .map((item) => String(item.locationFurniture || "").trim())
+        .filter(Boolean),
+    ),
+  ).sort((a, b) => a.localeCompare(b, "ko"));
+
+  return [{ key: "all", label: "전체" }, ...options.map((value) => ({ key: value, label: value }))];
+}
+
+function renderLocationSubFilters() {
+  const enabled = state.viewMode === "location";
+  $.locationSubFilters.hidden = !enabled;
+  if (!enabled) {
+    return;
+  }
+
+  const furnitureOptions = getLocationFurnitureFilterOptions();
+  const furnitureKeys = new Set(furnitureOptions.map((option) => option.key));
+  if (!furnitureKeys.has(state.activeFurnitureFilter)) {
+    state.activeFurnitureFilter = "all";
+  }
+  $.locationFurnitureFilter.innerHTML = furnitureOptions
+    .map((option) => `<option value="${escapeHtml(option.key)}">${escapeHtml(option.label)}</option>`)
+    .join("");
+  $.locationFurnitureFilter.value = state.activeFurnitureFilter;
+}
+
 function getFilteredItems() {
   const query = state.searchQuery.toLowerCase();
   return state.items.filter((item) => {
     const optionMatched = state.viewMode === "location"
-      ? (state.activeCategory === "all" || item.location === state.activeCategory)
+      ? (state.activeCategory === "all" || item.locationRoom === state.activeCategory)
       : (state.activeCategory === "all" || item.category === state.activeCategory);
+    const furnitureMatched = state.viewMode !== "location"
+      || state.activeFurnitureFilter === "all"
+      || item.locationFurniture === state.activeFurnitureFilter;
     const queryMatched =
       !query ||
       item.name.toLowerCase().includes(query) ||
-      item.location.toLowerCase().includes(query);
+      item.location.toLowerCase().includes(query) ||
+      item.locationRoom.toLowerCase().includes(query) ||
+      item.locationFurniture.toLowerCase().includes(query) ||
+      item.locationDetail.toLowerCase().includes(query);
 
-    return optionMatched && queryMatched;
+    return optionMatched && furnitureMatched && queryMatched;
   });
+}
+
+function updateMainScrollbar() {
+  const section = $.listSection;
+  const track = $.mainScrollbarTrack;
+  const thumb = $.mainScrollbarThumb;
+  const wrapper = $.mainScrollbar;
+
+  if (!section || !track || !thumb || !wrapper) {
+    return;
+  }
+
+  const maxScroll = section.scrollHeight - section.clientHeight;
+  if (maxScroll <= 0) {
+    wrapper.classList.add("is-hidden");
+    setCurrentThumbTop(0);
+    return;
+  }
+
+  wrapper.classList.remove("is-hidden");
+  const trackHeight = track.clientHeight;
+  const thumbHeight = Math.max(42, Math.round((section.clientHeight / section.scrollHeight) * trackHeight));
+  const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
+  const scrollRatio = section.scrollTop / maxScroll;
+  const thumbTop = maxThumbTop * scrollRatio;
+
+  thumb.style.height = `${thumbHeight}px`;
+  setCurrentThumbTop(thumbTop);
+}
+
+function syncScrollFromThumbTop(thumbTop) {
+  const section = $.listSection;
+  const track = $.mainScrollbarTrack;
+  const thumb = $.mainScrollbarThumb;
+  if (!section || !track || !thumb) {
+    return;
+  }
+
+  const maxScroll = section.scrollHeight - section.clientHeight;
+  const maxThumbTop = Math.max(0, track.clientHeight - thumb.clientHeight);
+  const nextThumbTop = Math.min(Math.max(0, thumbTop), maxThumbTop);
+  const ratio = maxThumbTop === 0 ? 0 : nextThumbTop / maxThumbTop;
+  section.scrollTop = ratio * maxScroll;
 }
 
 function renderItems() {
@@ -494,7 +886,7 @@ function renderItems() {
   }
 
   const grouped = filtered.reduce((acc, item) => {
-    const groupKey = state.viewMode === "location" ? item.location : item.category;
+    const groupKey = state.viewMode === "location" ? item.locationRoom : item.category;
     if (!acc[groupKey]) {
       acc[groupKey] = [];
     }
@@ -529,18 +921,18 @@ function renderItems() {
               <h3>${escapeHtml(item.name)}</h3>
               <div class="item-details">
                 <div class="detail-row">
-                  <span class="detail-label">📍 위치</span>
+                  <span class="detail-label">위치</span>
                   <span class="detail-value">${escapeHtml(item.location)}</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">🏷️ 카테고리</span>
+                  <span class="detail-label">카테고리</span>
                   <span class="detail-value">${getCategoryMeta(item.category).label}</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">📦 수량</span>
+                  <span class="detail-label">수량</span>
                   <span class="detail-value">${item.quantity}개</span>
                 </div>
-                ${item.memo ? `<div class="detail-row memo"><span class="detail-label">📝 메모</span><span class="detail-value">${escapeHtml(item.memo)}</span></div>` : ""}
+                ${item.memo ? `<div class="detail-row memo"><span class="detail-label">메모</span><span class="detail-value">${escapeHtml(item.memo)}</span></div>` : ""}
               </div>
               <div class="card-actions">
                 <div class="qty-controls" aria-label="수량 빠른 조절">
@@ -567,6 +959,7 @@ function renderItems() {
     .join("");
 
   $.itemList.innerHTML = sections;
+  updateMainScrollbar();
 
   if (state.highlightedNewItemId) {
     setTimeout(() => {
@@ -595,7 +988,9 @@ function addItemFromForm() {
 
   const candidate = normalizeItem({
     name: $.nameInput.value,
-    location: $.locationInput.value,
+    locationRoom: $.locationRoomInput.value,
+    locationFurniture: $.locationFurnitureInput.value,
+    locationDetail: $.locationDetailInput.value,
     category: $.categoryInput.value,
     quantity: $.quantityInput.value,
     memo: $.memoInput.value,
@@ -603,7 +998,7 @@ function addItemFromForm() {
   }, current);
 
   if (!isValidItemForSave(candidate)) {
-    $.formError.textContent = "이름, 위치, 카테고리는 필수입니다.";
+    $.formError.textContent = "이름, 방, 가구, 카테고리는 필수입니다.";
     return false;
   }
 
@@ -626,7 +1021,9 @@ function addItemFromForm() {
 
 function fillForm(item) {
   $.nameInput.value = item.name;
-  $.locationInput.value = item.location;
+  $.locationRoomInput.value = item.locationRoom || "거실";
+  $.locationFurnitureInput.value = item.locationFurniture || "";
+  $.locationDetailInput.value = item.locationDetail || "";
   $.categoryInput.value = item.category;
   $.quantityInput.value = String(item.quantity);
   $.memoInput.value = item.memo;
@@ -656,9 +1053,10 @@ function openCreateDialog() {
   $.quantityInput.value = "1";
   setImageMode("url");
   clearSelectedImage();
-  syncCategoryManageInputs();
+  renderRoomOptions();
+  syncRoomManageInputs();
   updateNameList();
-  updateLocationList();
+  updateLocationLists();
   $.dialogTitle.textContent = "물건 추가";
   $.submitBtn.textContent = "저장";
   $.formError.textContent = "";
@@ -684,6 +1082,70 @@ function deleteItem(itemId) {
   state.items = state.items.filter((item) => item.id !== itemId);
   saveItems(state.items);
   renderItems();
+}
+
+function hideUndoToast() {
+  $.undoToast.hidden = true;
+}
+
+function showUndoToast(message) {
+  const textEl = document.querySelector("#undoToastText");
+  if (textEl) {
+    textEl.textContent = message;
+  }
+  $.undoToast.hidden = false;
+}
+
+function finalizePendingDelete() {
+  if (!state.pendingDelete) {
+    return;
+  }
+
+  if (state.pendingDelete.timerId) {
+    clearTimeout(state.pendingDelete.timerId);
+  }
+
+  state.pendingDelete = null;
+  saveItems(state.items);
+  hideUndoToast();
+}
+
+function queueDeleteItem(itemId) {
+  const targetIndex = state.items.findIndex((item) => item.id === itemId);
+  if (targetIndex < 0) {
+    return;
+  }
+
+  finalizePendingDelete();
+
+  const [removed] = state.items.splice(targetIndex, 1);
+  renderItems();
+  showUndoToast("물건이 삭제됐어요.");
+
+  const timerId = setTimeout(() => {
+    finalizePendingDelete();
+  }, 5000);
+
+  state.pendingDelete = {
+    item: removed,
+    index: targetIndex,
+    timerId,
+  };
+}
+
+function undoPendingDelete() {
+  if (!state.pendingDelete) {
+    return;
+  }
+
+  const { item, index, timerId } = state.pendingDelete;
+  clearTimeout(timerId);
+  const insertIndex = Math.min(Math.max(0, index), state.items.length);
+  state.items.splice(insertIndex, 0, item);
+  state.pendingDelete = null;
+  saveItems(state.items);
+  renderItems();
+  hideUndoToast();
 }
 
 function renderCategoryChips() {
@@ -739,6 +1201,7 @@ function renderEmptyState() {
       ${onboardingBlock}
     </article>
   `;
+  updateMainScrollbar();
 }
 
 function updateItemQuantity(itemId, diff) {
@@ -766,6 +1229,59 @@ function bindEvents() {
     renderItems();
   });
 
+  $.locationFurnitureFilter.addEventListener("change", (event) => {
+    state.activeFurnitureFilter = event.target.value;
+    renderLocationSubFilters();
+    renderItems();
+  });
+
+  $.listSection.addEventListener("scroll", updateMainScrollbar);
+  window.addEventListener("resize", updateMainScrollbar);
+
+  $.mainScrollbar.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    $.listSection.scrollTop += event.deltaY;
+    updateMainScrollbar();
+  }, { passive: false });
+
+  $.mainScrollbarTrack.addEventListener("click", (event) => {
+    if (event.target === $.mainScrollbarThumb) {
+      return;
+    }
+
+    const rect = $.mainScrollbarTrack.getBoundingClientRect();
+    const currentThumbTop = getCurrentThumbTop();
+    const nextThumbTop = event.clientY - rect.top - ($.mainScrollbarThumb.clientHeight / 2);
+    if (Math.abs(nextThumbTop - currentThumbTop) > 1) {
+      syncScrollFromThumbTop(nextThumbTop);
+      updateMainScrollbar();
+    }
+  });
+
+  $.mainScrollbarThumb.addEventListener("pointerdown", (event) => {
+    scrollbarDragState.dragging = true;
+    scrollbarDragState.startY = event.clientY;
+    scrollbarDragState.startThumbTop = getCurrentThumbTop();
+    if ($.mainScrollbarThumb.setPointerCapture) {
+      $.mainScrollbarThumb.setPointerCapture(event.pointerId);
+    }
+    event.preventDefault();
+  });
+
+  document.addEventListener("pointermove", (event) => {
+    if (!scrollbarDragState.dragging) {
+      return;
+    }
+
+    const deltaY = event.clientY - scrollbarDragState.startY;
+    syncScrollFromThumbTop(scrollbarDragState.startThumbTop + deltaY);
+    updateMainScrollbar();
+  });
+
+  document.addEventListener("pointerup", () => {
+    scrollbarDragState.dragging = false;
+  });
+
   $.categoryChips.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-category]");
     if (!button) {
@@ -773,7 +1289,9 @@ function bindEvents() {
     }
 
     state.activeCategory = button.dataset.category;
+    state.activeFurnitureFilter = "all";
     renderCategoryChips();
+    renderLocationSubFilters();
     renderItems();
   });
 
@@ -785,13 +1303,36 @@ function bindEvents() {
 
     state.viewMode = button.dataset.view === "location" ? "location" : "category";
     state.activeCategory = "all";
+    state.activeFurnitureFilter = "all";
     renderViewToggle();
     renderCategoryChips();
+    renderLocationSubFilters();
     renderItems();
   });
 
   $.fabAdd.addEventListener("click", () => {
     openCreateDialog();
+  });
+
+  $.locationSettingsBtn.addEventListener("click", () => {
+    renderRoomOptions();
+    syncRoomManageInputs();
+    $.formError.textContent = "";
+    $.locationSettingsDialog.showModal();
+  });
+
+  $.closeLocationSettingsBtn.addEventListener("click", () => {
+    $.locationSettingsDialog.close();
+  });
+
+  $.categorySettingsBtn.addEventListener("click", () => {
+    syncCategoryManageInputs();
+    $.formError.textContent = "";
+    $.categorySettingsDialog.showModal();
+  });
+
+  $.closeCategorySettingsBtn.addEventListener("click", () => {
+    $.categorySettingsDialog.close();
   });
 
   $.cancelBtn.addEventListener("click", () => {
@@ -811,15 +1352,12 @@ function bindEvents() {
     await handleImageFileInput(file);
   });
 
-  const imageInputRadios = document.querySelectorAll('input[name="imageInputMethod"]');
-  imageInputRadios.forEach((radio) => {
-    radio.addEventListener("change", (event) => {
-      if (event.target.value === "upload") {
-        $.imageUploadInput.click();
-      } else if (event.target.value === "capture") {
-        $.imageCaptureInput.click();
-      }
-    });
+  $.pickUploadBtn.addEventListener("click", () => {
+    $.imageUploadInput.click();
+  });
+
+  $.pickCaptureBtn.addEventListener("click", () => {
+    $.imageCaptureInput.click();
   });
 
   $.clearImageBtn.addEventListener("click", () => {
@@ -843,7 +1381,7 @@ function bindEvents() {
     }
 
     $.formError.textContent = "";
-    $.categoryInput.value = key;
+    $.categoryManageSelect.value = key;
     $.customCategoryInput.value = "";
     syncCategoryManageInputs(key);
   });
@@ -856,20 +1394,50 @@ function bindEvents() {
     $.addCategoryBtn.click();
   });
 
-  $.categoryInput.addEventListener("change", () => {
-    syncCategoryManageInputs($.categoryInput.value);
+  $.categoryManageSelect.addEventListener("change", () => {
+    syncCategoryManageInputs($.categoryManageSelect.value);
+  });
+
+  $.addRoomBtn.addEventListener("click", () => {
+    const created = createRoom($.addRoomInput.value);
+    if (!created) {
+      return;
+    }
+
+    $.addRoomInput.value = "";
+  });
+
+  $.addRoomInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    $.addRoomBtn.click();
+  });
+
+  $.roomManageSelect.addEventListener("change", () => {
+    syncRoomManageInputs($.roomManageSelect.value);
+  });
+
+  $.renameRoomBtn.addEventListener("click", () => {
+    renameRoom($.roomManageSelect.value, $.renameRoomInput.value);
+  });
+
+  $.deleteRoomBtn.addEventListener("click", () => {
+    deleteRoom($.roomManageSelect.value);
   });
 
   $.nameInput.addEventListener("input", updateNameList);
   $.nameInput.addEventListener("change", autoSuggestCategory);
-  $.locationInput.addEventListener("input", updateLocationList);
+  $.locationFurnitureInput.addEventListener("input", updateLocationLists);
+  $.locationDetailInput.addEventListener("input", updateLocationLists);
 
   $.renameCategoryBtn.addEventListener("click", () => {
-    renameCategory($.categoryInput.value, $.renameCategoryInput.value);
+    renameCategory($.categoryManageSelect.value, $.renameCategoryInput.value);
   });
 
   $.deleteCategoryBtn.addEventListener("click", () => {
-    deleteCategory($.categoryInput.value);
+    deleteCategory($.categoryManageSelect.value);
   });
 
   $.itemList.addEventListener("click", (event) => {
@@ -904,7 +1472,7 @@ function bindEvents() {
     if (action === "delete") {
       const card = button.closest(".item-card");
       if (!card) {
-        deleteItem(itemId);
+        queueDeleteItem(itemId);
         return;
       }
 
@@ -912,7 +1480,7 @@ function bindEvents() {
       card.addEventListener(
         "animationend",
         () => {
-          deleteItem(itemId);
+          queueDeleteItem(itemId);
         },
         { once: true },
       );
@@ -944,6 +1512,10 @@ function bindEvents() {
     $.submitBtn.textContent = "저장";
     $.itemDialog.close();
   });
+
+  $.undoDeleteBtn.addEventListener("click", () => {
+    undoPendingDelete();
+  });
 }
 
 function getNameSuggestions(input) {
@@ -955,10 +1527,14 @@ function getNameSuggestions(input) {
     .slice(0, 5);
 }
 
-function getLocationSuggestions(input) {
+function getLocationSuggestions(input, field) {
   if (!input.trim()) return [];
   const query = input.toLowerCase();
-  const locations = new Set(state.items.map(item => item.location.toLowerCase()));
+  const locations = new Set(
+    state.items
+      .map((item) => String(item[field] || "").toLowerCase())
+      .filter(Boolean),
+  );
   return Array.from(locations)
     .filter(loc => loc.includes(query))
     .slice(0, 5);
@@ -971,11 +1547,24 @@ function updateNameList() {
   nameList.innerHTML = suggestions.map(name => `<option value="${name}"></option>`).join("");
 }
 
-function updateLocationList() {
-  const input = $.locationInput.value;
-  const suggestions = getLocationSuggestions(input);
-  const locationList = document.querySelector("#locationList");
-  locationList.innerHTML = suggestions.map(loc => `<option value="${loc}"></option>`).join("");
+function updateLocationLists() {
+  const furnitureSuggestions = getLocationSuggestions(
+    $.locationFurnitureInput.value,
+    "locationFurniture",
+  );
+  const detailSuggestions = getLocationSuggestions(
+    $.locationDetailInput.value,
+    "locationDetail",
+  );
+
+  const furnitureList = document.querySelector("#locationFurnitureList");
+  const detailList = document.querySelector("#locationDetailList");
+  furnitureList.innerHTML = furnitureSuggestions
+    .map((value) => `<option value="${value}"></option>`)
+    .join("");
+  detailList.innerHTML = detailSuggestions
+    .map((value) => `<option value="${value}"></option>`)
+    .join("");
 }
 
 function suggestCategoryByName(name) {
@@ -1009,15 +1598,21 @@ function autoSuggestCategory() {
 
 function bootstrap() {
   state.categories = loadCategories();
+  state.rooms = loadRooms();
   state.items = loadItems();
+  mergeRoomsFromItems();
   state.onboardingDismissed = loadOnboardingDismissed();
   renderCategoryChips();
   renderViewToggle();
+  renderLocationSubFilters();
   renderImageMode();
+  renderRoomOptions();
+  syncRoomManageInputs();
   renderCategoryOptions();
   syncCategoryManageInputs();
   renderItems();
   bindEvents();
+  updateMainScrollbar();
 }
 
 bootstrap();

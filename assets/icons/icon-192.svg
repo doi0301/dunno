@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-labelledby="title desc">
+  <title id="title">어디뒀더라 앱 아이콘</title>
+  <desc id="desc">상자와 핀 모양을 결합한 위치 정리 앱 아이콘</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff6dd" />
+      <stop offset="100%" stop-color="#e8fff5" />
+    </linearGradient>
+    <linearGradient id="box" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9dc7ff" />
+      <stop offset="100%" stop-color="#7bcff0" />
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="176" height="176" rx="40" fill="url(#bg)" />
+  <rect x="42" y="78" width="108" height="70" rx="16" fill="url(#box)" />
+  <path d="M42 98L96 122L150 98" fill="none" stroke="#1f2937" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M96 45c-14.36 0-26 11.64-26 26 0 18 26 46 26 46s26-28 26-46c0-14.36-11.64-26-26-26z" fill="#ffb996" stroke="#1f2937" stroke-width="6" />
+  <circle cx="96" cy="71" r="8" fill="#1f2937" />
+</svg>

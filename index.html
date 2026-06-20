@@ -3,7 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#fff6dd" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>DUNNO - 어디뒀더라</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./assets/icons/icon-192.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/icons/icon-192.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -18,7 +24,6 @@
 
     <main class="app-shell">
       <header class="app-header">
-        <p class="eyebrow">SECOND BRAIN FOR HOME</p>
         <h1>어디뒀더라</h1>
         <p class="subcopy">물건 위치와 재고를 한눈에 정리해요.</p>
       </header>
@@ -33,13 +38,19 @@
       </section>
 
       <section class="view-toggle-section" aria-label="그룹 보기 전환">
-        <div class="view-toggle" id="viewToggle" role="tablist" aria-label="그룹 기준">
-          <button type="button" class="view-tab active" data-view="category" role="tab" aria-selected="true">
-            카테고리별
-          </button>
-          <button type="button" class="view-tab" data-view="location" role="tab" aria-selected="false">
-            위치별
-          </button>
+        <div class="view-toggle-row">
+          <div class="view-toggle" id="viewToggle" role="tablist" aria-label="그룹 기준">
+            <button type="button" class="view-tab active" data-view="category" role="tab" aria-selected="true">
+              카테고리별
+            </button>
+            <button type="button" class="view-tab" data-view="location" role="tab" aria-selected="false">
+              위치별
+            </button>
+          </div>
+          <div class="settings-actions">
+            <button id="locationSettingsBtn" type="button" class="tiny-btn settings-btn">위치 설정</button>
+            <button id="categorySettingsBtn" type="button" class="tiny-btn settings-btn">카테고리 설정</button>
+          </div>
         </div>
       </section>
 
@@ -47,8 +58,20 @@
         <div id="categoryChips" class="chip-list"></div>
       </section>
 
+      <section id="locationSubFilters" class="sub-filter-section" aria-label="위치 하위 필터" hidden>
+        <label for="locationFurnitureFilter" class="sub-filter-label">장소 필터</label>
+        <div class="sub-filter-select-wrap">
+          <select id="locationFurnitureFilter" aria-label="장소 필터"></select>
+        </div>
+      </section>
+
       <section class="list-section" aria-label="아이템 목록">
         <div id="itemList" class="item-list"></div>
+        <div id="mainScrollbar" class="main-scrollbar" aria-hidden="true">
+          <div id="mainScrollbarTrack" class="main-scrollbar-track">
+            <div id="mainScrollbarThumb" class="main-scrollbar-thumb"></div>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -64,30 +87,38 @@
           <datalist id="nameList"></datalist>
         </label>
 
-        <label>
-          위치
-          <input id="locationInput" name="location" type="text" list="locationList" required />
-          <datalist id="locationList"></datalist>
-        </label>
+        <div class="location-type-grid" aria-label="위치 정보 입력">
+          <label>
+            방
+            <select id="locationRoomInput" name="locationRoom" required>
+              <option value="거실">거실</option>
+              <option value="침실">침실</option>
+              <option value="주방">주방</option>
+              <option value="욕실">욕실</option>
+              <option value="베란다">베란다</option>
+              <option value="현관">현관</option>
+              <option value="서재">서재</option>
+              <option value="기타">기타</option>
+            </select>
+          </label>
+
+          <label>
+            가구
+            <input id="locationFurnitureInput" name="locationFurniture" type="text" list="locationFurnitureList" placeholder="예: 서랍장" required />
+            <datalist id="locationFurnitureList"></datalist>
+          </label>
+
+          <label>
+            상세위치
+            <input id="locationDetailInput" name="locationDetail" type="text" list="locationDetailList" placeholder="예: 2번째 칸" />
+            <datalist id="locationDetailList"></datalist>
+          </label>
+        </div>
 
         <label>
           카테고리
           <select id="categoryInput" name="category" required></select>
         </label>
-
-        <div class="category-custom-row" aria-label="카테고리 직접 추가">
-          <input id="customCategoryInput" type="text" placeholder="새 카테고리 이름" />
-          <button id="addCategoryBtn" type="button" class="tiny-btn">카테고리 추가</button>
-        </div>
-
-        <div class="category-manage-block" aria-label="카테고리 관리">
-          <p class="field-title">선택한 카테고리 관리</p>
-          <div class="category-manage-row">
-            <input id="renameCategoryInput" type="text" placeholder="변경할 이름" />
-            <button id="renameCategoryBtn" type="button" class="tiny-btn">이름 변경</button>
-            <button id="deleteCategoryBtn" type="button" class="tiny-btn danger">삭제</button>
-          </div>
-        </div>
 
         <label>
           수량
@@ -119,20 +150,15 @@
         </div>
 
         <div id="imageUploadGroup" hidden>
-          <div class="image-input-section" aria-label="이미지 입력 방식 선택">
-            <p class="field-title">이미지 입력 방식</p>
-            <div class="image-input-options">
-              <label class="image-input-option">
-                <input type="radio" name="imageInputMethod" value="upload" checked />
-                <span class="option-label">이미지 업로드</span>
-                <input id="imageUploadInput" type="file" accept="image/*" hidden />
-              </label>
-              <label class="image-input-option">
-                <input type="radio" name="imageInputMethod" value="capture" />
-                <span class="option-label">사진 촬영</span>
-                <input id="imageCaptureInput" type="file" accept="image/*" capture="environment" hidden />
-              </label>
+          <div class="image-input-section" aria-label="이미지 입력 방식">
+            <p class="field-title">이미지 선택</p>
+            <div class="image-upload-actions">
+              <button type="button" id="pickUploadBtn" class="tiny-btn">파일에서 선택</button>
+              <button type="button" id="pickCaptureBtn" class="tiny-btn">카메라 촬영</button>
             </div>
+            <p class="image-upload-help">휴대폰에서는 카메라 버튼으로 바로 촬영할 수 있어요.</p>
+            <input id="imageUploadInput" type="file" accept="image/*" hidden />
+            <input id="imageCaptureInput" type="file" accept="image/*" capture="environment" hidden />
           </div>
 
           <div class="image-preview-box" id="imagePreviewBox" aria-live="polite">
@@ -151,6 +177,78 @@
       </form>
     </dialog>
 
+    <dialog id="categorySettingsDialog" class="item-dialog">
+      <form method="dialog" class="item-form">
+        <h2>카테고리 설정</h2>
+
+        <label>
+          관리할 카테고리
+          <select id="categoryManageSelect"></select>
+        </label>
+
+        <div class="category-custom-row" aria-label="카테고리 직접 추가">
+          <input id="customCategoryInput" type="text" placeholder="새 카테고리 이름" />
+          <button id="addCategoryBtn" type="button" class="tiny-btn">카테고리 추가</button>
+        </div>
+
+        <div class="category-manage-block" aria-label="카테고리 관리">
+          <p class="field-title">선택한 카테고리 관리</p>
+          <div class="category-manage-row">
+            <input id="renameCategoryInput" type="text" placeholder="변경할 이름" />
+            <button id="renameCategoryBtn" type="button" class="tiny-btn">이름 변경</button>
+            <button id="deleteCategoryBtn" type="button" class="tiny-btn danger">삭제</button>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="closeCategorySettingsBtn" type="button" class="ghost">닫기</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="locationSettingsDialog" class="item-dialog">
+      <form method="dialog" class="item-form">
+        <h2>위치 설정</h2>
+
+        <label>
+          관리할 방
+          <select id="roomManageSelect"></select>
+        </label>
+
+        <div class="category-custom-row" aria-label="방 직접 추가">
+          <input id="addRoomInput" type="text" placeholder="새 방 이름" />
+          <button id="addRoomBtn" type="button" class="tiny-btn">방 추가</button>
+        </div>
+
+        <div class="category-manage-block" aria-label="방 관리">
+          <p class="field-title">선택한 방 관리</p>
+          <div class="category-manage-row">
+            <input id="renameRoomInput" type="text" placeholder="변경할 방 이름" />
+            <button id="renameRoomBtn" type="button" class="tiny-btn">이름 변경</button>
+            <button id="deleteRoomBtn" type="button" class="tiny-btn danger">삭제</button>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="closeLocationSettingsBtn" type="button" class="ghost">닫기</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="undoToast" class="undo-toast" role="status" aria-live="polite" hidden>
+      <span id="undoToastText">물건이 삭제됐어요.</span>
+      <button id="undoDeleteBtn" type="button" class="tiny-btn">되돌리기</button>
+    </div>
+
     <script src="./app.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("./sw.js").catch(() => {
+            // service worker registration failure is non-fatal for app usage
+          });
+        });
+      }
+    </script>
   </body>
 </html>
