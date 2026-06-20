@@ -979,4 +979,17 @@ function autoSuggestCategory() {
   }
 }
 
+function bootstrap() {
+  state.categories = loadCategories();
+  state.items = loadItems();
+  state.onboardingDismissed = loadOnboardingDismissed();
+  renderCategoryChips();
+  renderViewToggle();
+  renderImageMode();
+  renderCategoryOptions();
+  syncCategoryManageInputs();
+  renderItems();
+  bindEvents();
+}
+
 bootstrap();
