@@ -341,6 +341,10 @@ function clearSelectedImage() {
   state.formSelectedImageUrl = "";
   $.imageUploadInput.value = "";
   $.imageCaptureInput.value = "";
+  const uploadRadio = document.querySelector('input[name="imageInputMethod"][value="upload"]');
+  if (uploadRadio) {
+    uploadRadio.checked = true;
+  }
   setImagePreview("");
 }
 
@@ -792,6 +796,17 @@ function bindEvents() {
   $.imageCaptureInput.addEventListener("change", async (event) => {
     const [file] = event.target.files || [];
     await handleImageFileInput(file);
+  });
+
+  const imageInputRadios = document.querySelectorAll('input[name="imageInputMethod"]');
+  imageInputRadios.forEach((radio) => {
+    radio.addEventListener("change", (event) => {
+      if (event.target.value === "upload") {
+        $.imageUploadInput.click();
+      } else if (event.target.value === "capture") {
+        $.imageCaptureInput.click();
+      }
+    });
   });
 
   $.clearImageBtn.addEventListener("click", () => {

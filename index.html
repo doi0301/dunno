@@ -119,15 +119,20 @@
         </div>
 
         <div id="imageUploadGroup" hidden>
-          <div class="image-input-grid" aria-label="이미지 업로드 방식">
-            <label>
-              이미지 업로드
-              <input id="imageUploadInput" type="file" accept="image/*" />
-            </label>
-            <label>
-              사진 촬영
-              <input id="imageCaptureInput" type="file" accept="image/*" capture="environment" />
-            </label>
+          <div class="image-input-section" aria-label="이미지 입력 방식 선택">
+            <p class="field-title">이미지 입력 방식</p>
+            <div class="image-input-options">
+              <label class="image-input-option">
+                <input type="radio" name="imageInputMethod" value="upload" checked />
+                <span class="option-label">이미지 업로드</span>
+                <input id="imageUploadInput" type="file" accept="image/*" hidden />
+              </label>
+              <label class="image-input-option">
+                <input type="radio" name="imageInputMethod" value="capture" />
+                <span class="option-label">사진 촬영</span>
+                <input id="imageCaptureInput" type="file" accept="image/*" capture="environment" hidden />
+              </label>
+            </div>
           </div>
 
           <div class="image-preview-box" id="imagePreviewBox" aria-live="polite">
