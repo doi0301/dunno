@@ -527,8 +527,21 @@ function renderItems() {
             </div>
             <div class="item-meta">
               <h3>${escapeHtml(item.name)}</h3>
-              <p>${escapeHtml(item.location)}</p>
-              <p>수량 ${item.quantity}${item.memo ? ` · ${escapeHtml(item.memo)}` : ""}</p>
+              <div class="item-details">
+                <div class="detail-row">
+                  <span class="detail-label">📍 위치</span>
+                  <span class="detail-value">${escapeHtml(item.location)}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">🏷️ 카테고리</span>
+                  <span class="detail-value">${getCategoryMeta(item.category).label}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">📦 수량</span>
+                  <span class="detail-value">${item.quantity}개</span>
+                </div>
+                ${item.memo ? `<div class="detail-row memo"><span class="detail-label">📝 메모</span><span class="detail-value">${escapeHtml(item.memo)}</span></div>` : ""}
+              </div>
               <div class="card-actions">
                 <div class="qty-controls" aria-label="수량 빠른 조절">
                   <button type="button" class="tiny-btn qty-btn" data-action="qty-minus" data-item-id="${item.id}">-</button>

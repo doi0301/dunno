@@ -633,3 +633,38 @@ body {
     right: max(1.2rem, calc((100vw - 720px) / 2 + 1.2rem));
   }
 }
+
+/* 상세 정보 카드 스타일 */
+.item-details {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--category-color);
+}
+
+.detail-row {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.detail-row.memo {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--ink-700);
+  min-width: 65px;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  color: var(--ink-900);
+  word-break: break-word;
+}
