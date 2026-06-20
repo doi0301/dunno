@@ -640,6 +640,8 @@ function openCreateDialog() {
   setImageMode("url");
   clearSelectedImage();
   syncCategoryManageInputs();
+  updateNameList();
+  updateLocationList();
   $.dialogTitle.textContent = "물건 추가";
   $.submitBtn.textContent = "저장";
   $.formError.textContent = "";
@@ -830,6 +832,10 @@ function bindEvents() {
     syncCategoryManageInputs($.categoryInput.value);
   });
 
+  $.nameInput.addEventListener("input", updateNameList);
+  $.nameInput.addEventListener("change", autoSuggestCategory);
+  $.locationInput.addEventListener("input", updateLocationList);
+
   $.renameCategoryBtn.addEventListener("click", () => {
     renameCategory($.categoryInput.value, $.renameCategoryInput.value);
   });
@@ -912,17 +918,65 @@ function bindEvents() {
   });
 }
 
-function bootstrap() {
-  state.categories = loadCategories();
-  state.items = loadItems();
-  state.onboardingDismissed = loadOnboardingDismissed();
-  renderCategoryChips();
-  renderViewToggle();
-  renderImageMode();
-  renderCategoryOptions();
-  syncCategoryManageInputs();
-  renderItems();
-  bindEvents();
+function getNameSuggestions(input) {
+  if (!input.trim()) return [];
+  const query = input.toLowerCase();
+  const names = new Set(state.items.map(item => item.name.toLowerCase()));
+  return Array.from(names)
+    .filter(name => name.includes(query))
+    .slice(0, 5);
+}
+
+function getLocationSuggestions(input) {
+  if (!input.trim()) return [];
+  const query = input.toLowerCase();
+  const locations = new Set(state.items.map(item => item.location.toLowerCase()));
+  return Array.from(locations)
+    .filter(loc => loc.includes(query))
+    .slice(0, 5);
+}
+
+function updateNameList() {
+  const input = $.nameInput.value;
+  const suggestions = getNameSuggestions(input);
+  const nameList = document.querySelector("#nameList");
+  nameList.innerHTML = suggestions.map(name => `<option value="${name}"></option>`).join("");
+}
+
+function updateLocationList() {
+  const input = $.locationInput.value;
+  const suggestions = getLocationSuggestions(input);
+  const locationList = document.querySelector("#locationList");
+  locationList.innerHTML = suggestions.map(loc => `<option value="${loc}"></option>`).join("");
+}
+
+function suggestCategoryByName(name) {
+  const categoryKeywords = {
+    electronics: ["폰", "충전", "케이블", "컴퓨터", "노트북", "마우스", "키보드", "모니터", "헤드폰", "스피커"],
+    kitchen: ["냄비", "팬", "칼", "식기", "그릇", "숟가락", "젓가락", "식탁", "냉장고", "전자레인지"],
+    documents: ["서류", "서식", "계약서", "영수증", "청구서", "보험", "증명서", "카드"],
+    clothing: ["옷", "셔츠", "바지", "치마", "신발", "양말", "모자", "장갑", "스카프"],
+    toiletries: ["샴푸", "린스", "비누", "치약", "칫솔", "휴지", "넙치", "세제", "수건"],
+    food: ["라면", "기름", "쌀", "밀가루", "소금", "설탕", "스낵", "음료", "우유"],
+    tools: ["망치", "드라이버", "못", "나사", "접착제", "테이프", "펜치"],
+  };
+
+  const nameLower = name.toLowerCase();
+  for (const [category, keywords] of Object.entries(categoryKeywords)) {
+    if (keywords.some(kw => nameLower.includes(kw))) {
+      return category;
+    }
+  }
+  return "etc";
+}
+
+function autoSuggestCategory() {
+  const name = $.nameInput.value.trim();
+  if (name) {
+    const suggestedCategory = suggestCategoryByName(name);
+    $.categoryInput.value = suggestedCategory;
+    syncCategoryManageInputs(suggestedCategory);
+  }
 }
 
 bootstrap();
